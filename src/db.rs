@@ -169,7 +169,20 @@ pub fn query_state(data_dir: &Path, singer_count: usize) -> Result<KaraokeState>
         ) {
             Ok(id) => { tracing::debug!(hist_singer_id = id, "is_playing: historySingers id"); id }
             Err(e) => {
-                tracing::debug!(error = %e, "is_playing: singer not in historySingers (never sung before)");
+                // Dump all names in historySingers to diagnose mismatches.
+                let existing: Vec<String> = conn
+                    .prepare("SELECT name FROM historySingers ORDER BY name LIMIT 20")
+                    .and_then(|mut s| {
+                        s.query_map([], |row| row.get(0))
+                            .map(|rows| rows.filter_map(|r| r.ok()).collect())
+                    })
+                    .unwrap_or_default();
+                tracing::debug!(
+                    searching_for = %singer.name,
+                    names_in_table = ?existing,
+                    error = %e,
+                    "is_playing: singer not in historySingers"
+                );
                 break 'playing false;
             }
         };
