@@ -1,0 +1,23 @@
+[package]
+name = "openkj-ticker"
+version = "0.1.0"
+edition = "2021"
+description = "OpenKJ karaoke rotation ticker for OBS"
+
+[[bin]]
+name = "openkj-ticker"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+axum = "0.7"
+rusqlite = { version = "0.31", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+dirs = "5"
+tower-http = { version = "0.5", features = ["cors"] }
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

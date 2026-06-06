@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenKJ Rotation</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0f0f14;
+    --surface:   #1a1a22;
+    --border:    #2a2a36;
+    --now-color: #ffd44f;
+    --next-color:#5bc8ff;
+    --text:      #e8e8f0;
+    --muted:     #888;
+    --dim:       #555;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 15px;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: var(--now-color);
+  }
+
+  #status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #444;
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  #status-dot.ok   { background: #3c3; }
+  #status-dot.warn { background: #c60; }
+  #status-dot.err  { background: #c33; }
+
+  .hero {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+
+  .hero-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 22px;
+    flex: 1;
+    min-width: 220px;
+  }
+
+  .hero-card .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .hero-card .name {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .hero-card .song {
+    font-size: 13px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .hero-card.now  { border-color: rgba(255, 212, 79, 0.35); }
+  .hero-card.now  .label { color: var(--now-color); }
+  .hero-card.now  .name  { color: var(--now-color); }
+
+  .hero-card.next { border-color: rgba(91, 200, 255, 0.3); }
+  .hero-card.next .label { color: var(--next-color); }
+  .hero-card.next .name  { color: var(--next-color); }
+
+  .empty-hero { color: var(--dim); font-style: italic; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead th {
+    text-align: left;
+    padding: 8px 14px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+  }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+
+  tbody tr:hover { background: rgba(255,255,255,0.03); }
+
+  tbody tr.row-now  { background: rgba(255, 212, 79, 0.06); }
+  tbody tr.row-next { background: rgba(91, 200, 255, 0.05); }
+
+  td {
+    padding: 12px 14px;
+    vertical-align: middle;
+  }
+
+  .badge {
+    display: inline-block;
+    border-radius: 5px;
+    padding: 2px 9px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    min-width: 36px;
+    text-align: center;
+  }
+
+  .badge-now  { background: rgba(255,212,79,0.18); color: var(--now-color);  border: 1px solid rgba(255,212,79,0.35); }
+  .badge-next { background: rgba(91,200,255,0.15); color: var(--next-color); border: 1px solid rgba(91,200,255,0.3); }
+  .badge-num  { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+
+  .singer-name { font-weight: 600; }
+
+  .song-title  { color: var(--muted); }
+  .song-artist { color: var(--dim); }
+  .no-song     { color: var(--dim); font-style: italic; font-size: 13px; }
+
+  #empty-msg {
+    text-align: center;
+    padding: 60px;
+    color: var(--dim);
+    font-style: italic;
+  }
+
+  footer {
+    margin-top: 20px;
+    font-size: 11px;
+    color: var(--dim);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  footer a { color: inherit; text-decoration: none; }
+  footer a:hover { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <div id="status-dot"></div>
+  <h1>Karaoke Rotation</h1>
+</header>
+
+<div class="hero">
+  <div class="hero-card now" id="card-now">
+    <div class="label">Now Singing</div>
+    <div class="name empty-hero" id="now-name">—</div>
+    <div class="song" id="now-song"></div>
+  </div>
+  <div class="hero-card next" id="card-next">
+    <div class="label">Next Up</div>
+    <div class="name empty-hero" id="next-name">—</div>
+    <div class="song" id="next-song"></div>
+  </div>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th style="width:60px">#</th>
+      <th>Singer</th>
+      <th>Next Song</th>
+    </tr>
+  </thead>
+  <tbody id="tbody">
+    <tr><td colspan="3" id="empty-msg">Loading…</td></tr>
+  </tbody>
+</table>
+
+<footer>
+  <span id="last-updated"></span>
+  <span><a href="/ticker" target="_blank">OBS Ticker page ↗</a></span>
+</footer>
+
+<script>
+  function esc(s) {
+    return String(s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function songDisplay(singer) {
+    if (!singer || !singer.next_song_title) return null;
+    let s = esc(singer.next_song_title);
+    if (singer.next_song_artist) s += ` — ${esc(singer.next_song_artist)}`;
+    return s;
+  }
+
+  function setCard(nameEl, songEl, singer) {
+    if (singer) {
+      nameEl.textContent = singer.name;
+      nameEl.classList.remove('empty-hero');
+      const song = songDisplay(singer);
+      songEl.innerHTML = song
+        ? `<span class="song-title">${song}</span>`
+        : '';
+    } else {
+      nameEl.textContent = '—';
+      nameEl.classList.add('empty-hero');
+      songEl.innerHTML = '';
+    }
+  }
+
+  async function update() {
+    const dot = document.getElementById('status-dot');
+
+    try {
+      const r = await fetch('/api/state');
+      const s = await r.json();
+
+      if (s.status === 'not_ready' || s.status === 'database_not_found') {
+        dot.className = 'warn';
+        document.getElementById('now-name').textContent = '—';
+        document.getElementById('next-name').textContent = '—';
+        document.getElementById('tbody').innerHTML =
+          `<tr><td colspan="3" id="empty-msg" style="color:#c60">` +
+          (s.status === 'database_not_found'
+            ? 'OpenKJ database not found — is OpenKJ running?'
+            : 'Waiting for data…') +
+          `</td></tr>`;
+        return;
+      }
+
+      dot.className = 'ok';
+
+      setCard(
+        document.getElementById('now-name'),
+        document.getElementById('now-song'),
+        s.current_singer
+      );
+      setCard(
+        document.getElementById('next-name'),
+        document.getElementById('next-song'),
+        s.next_up
+      );
+
+      const tbody = document.getElementById('tbody');
+
+      if (!s.rotation || s.rotation.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" id="empty-msg">No singers in rotation</td></tr>';
+        document.getElementById('last-updated').textContent =
+          `Updated ${new Date().toLocaleTimeString()}`;
+        return;
+      }
+
+      const nowName  = s.current_singer?.name;
+      const nextName = s.next_up?.name;
+
+      tbody.innerHTML = s.rotation.map((singer, i) => {
+        const isNow  = singer.is_current;
+        const isNext = !isNow && singer.name === nextName;
+
+        let rowClass  = isNow ? ' class="row-now"' : (isNext ? ' class="row-next"' : '');
+        let badgeHtml;
+        if (isNow)       badgeHtml = `<span class="badge badge-now">NOW</span>`;
+        else if (isNext) badgeHtml = `<span class="badge badge-next">NEXT</span>`;
+        else             badgeHtml = `<span class="badge badge-num">${i + 1}</span>`;
+
+        const songTitle  = singer.next_song_title;
+        const songArtist = singer.next_song_artist;
+        let songHtml;
+        if (songTitle) {
+          songHtml = `<span class="song-title">${esc(songTitle)}</span>`;
+          if (songArtist) songHtml += ` <span class="song-artist">— ${esc(songArtist)}</span>`;
+        } else {
+          songHtml = `<span class="no-song">no song queued</span>`;
+        }
+
+        return `<tr${rowClass}>
+          <td>${badgeHtml}</td>
+          <td><span class="singer-name">${esc(singer.name)}</span></td>
+          <td>${songHtml}</td>
+        </tr>`;
+      }).join('');
+
+      document.getElementById('last-updated').textContent =
+        `Updated ${new Date().toLocaleTimeString()}`;
+
+    } catch (_) {
+      dot.className = 'err';
+    }
+  }
+
+  update();
+  setInterval(update, 1500);
+</script>
+</body>
+</html>
