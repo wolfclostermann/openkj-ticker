@@ -266,16 +266,13 @@
 
       dot.className = 'ok';
 
-      setCard(
-        document.getElementById('now-name'),
-        document.getElementById('now-song'),
-        s.current_singer
-      );
-      setCard(
-        document.getElementById('next-name'),
-        document.getElementById('next-song'),
-        s.next_up
-      );
+      // When playing: current_singer is "Now Singing", next_up is "Up Next".
+      // Between songs: current_singer (top of rotation) is "Up Next", "Now Singing" is empty.
+      const nowSinger  = s.is_playing ? s.current_singer : null;
+      const nextSinger = s.is_playing ? s.next_up : s.current_singer;
+
+      setCard(document.getElementById('now-name'), document.getElementById('now-song'), nowSinger);
+      setCard(document.getElementById('next-name'), document.getElementById('next-song'), nextSinger);
 
       const tbody = document.getElementById('tbody');
 
@@ -286,11 +283,11 @@
         return;
       }
 
-      const nowName  = s.current_singer?.name;
-      const nextName = s.next_up?.name;
+      const nowName  = nowSinger?.name;
+      const nextName = nextSinger?.name;
 
       tbody.innerHTML = s.rotation.map((singer, i) => {
-        const isNow  = singer.is_current;
+        const isNow  = s.is_playing && singer.is_current;
         const isNext = !isNow && singer.name === nextName;
 
         let rowClass  = isNow ? ' class="row-now"' : (isNext ? ' class="row-next"' : '');

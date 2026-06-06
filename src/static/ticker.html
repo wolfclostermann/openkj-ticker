@@ -130,31 +130,29 @@
     }
 
     const parts = [];
+    const skipNames = new Set();
 
-    if (s.current_singer) {
+    // Show NOW only when a song is actively playing.
+    if (s.is_playing && s.current_singer) {
       const c = s.current_singer;
       parts.push(
         `<span class="seg"><span class="lbl-now">NOW</span>` +
         `<span class="singer-name">${esc(c.name)}</span>${songHtml(c)}</span>`
       );
+      skipNames.add(c.name);
     }
 
-    if (s.next_up) {
-      const n = s.next_up;
-      // Skip if identical to current (edge case: only one singer)
-      if (!s.current_singer || n.name !== s.current_singer.name) {
-        parts.push(
-          `<span class="seg"><span class="lbl-next">NEXT</span>` +
-          `<span class="singer-name">${esc(n.name)}</span>${songHtml(n)}</span>`
-        );
-      }
+    // NEXT is next_up while playing; current_singer (top of rotation) when between songs.
+    const nextSinger = s.is_playing ? s.next_up : s.current_singer;
+    if (nextSinger && !skipNames.has(nextSinger.name)) {
+      parts.push(
+        `<span class="seg"><span class="lbl-next">NEXT</span>` +
+        `<span class="singer-name">${esc(nextSinger.name)}</span>${songHtml(nextSinger)}</span>`
+      );
+      skipNames.add(nextSinger.name);
     }
 
-    // Remaining singers up to singer_count
-    const skipNames = new Set();
-    if (s.current_singer) skipNames.add(s.current_singer.name);
-    if (s.next_up)        skipNames.add(s.next_up.name);
-
+    // Remaining singers up to singer_count.
     const rest = s.rotation.filter(r => !skipNames.has(r.name));
     const shown = rest.slice(0, Math.max(0, (s.singer_count || 8) - skipNames.size));
 

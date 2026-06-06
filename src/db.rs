@@ -21,6 +21,8 @@ pub struct KaraokeState {
     pub rotation: Vec<Singer>,
     /// The configured display limit passed through to the client.
     pub singer_count: usize,
+    /// True when the current singer's most recently started song is still in their unplayed queue.
+    pub is_playing: bool,
     pub status: String,
 }
 
@@ -58,6 +60,7 @@ pub fn query_state(data_dir: &Path, singer_count: usize) -> Result<KaraokeState>
             next_up: None,
             rotation: vec![],
             singer_count,
+            is_playing: false,
             status: "database_not_found".to_string(),
         });
     }
@@ -124,6 +127,29 @@ pub fn query_state(data_dir: &Path, singer_count: usize) -> Result<KaraokeState>
 
     let current_singer = current_idx.map(|i| rotation[i].clone());
 
+    // A song is "playing" if the most recently started song (historySongs.lastplay)
+    // for the current singer is still present in their unplayed queue.
+    let is_playing = match (&current_singer, current_singer_id) {
+        (Some(singer), Some(singer_id)) => {
+            let count: i64 = conn
+                .query_row(
+                    "SELECT COUNT(*) \
+                     FROM (SELECT songid FROM historySongs \
+                           WHERE historySinger = ?1 \
+                           ORDER BY lastplay DESC LIMIT 1) recent \
+                     JOIN queuesongs q \
+                       ON q.song = recent.songid \
+                      AND q.singer = ?2 \
+                      AND q.played = 0",
+                    rusqlite::params![singer.name, singer_id],
+                    |row| row.get(0),
+                )
+                .unwrap_or(0);
+            count > 0
+        }
+        _ => false,
+    };
+
     let next_up = match current_idx {
         Some(i) if i + 1 < rotation.len() => Some(rotation[i + 1].clone()),
         // Wrap around to the first singer if current is last.
@@ -138,6 +164,7 @@ pub fn query_state(data_dir: &Path, singer_count: usize) -> Result<KaraokeState>
         next_up,
         rotation,
         singer_count,
+        is_playing,
         status: "ok".to_string(),
     })
 }
